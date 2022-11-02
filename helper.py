@@ -42,9 +42,9 @@ def get_fingerprints(radiomaps):
     return data
 
 
-def flatten_to_cell(nrow, ncol, id):
-    col = id % ncol
-    row = id//ncol
+def flatten_to_cell(n_rows, n_cols, id):
+    col = id % n_cols
+    row = id//n_cols
     return np.array([row, col])
 
 
@@ -56,10 +56,10 @@ def get_centroid_cell(cells, distances):
     return centroid_cell+0.5
 
 
-def check_position_pred_accuracy(n_rows=8, n_cols=10, radiomaps=None, testing_data=None):
+def check_position_pred_accuracy(n_rows=8, n_cols=10, radiomaps=None, testing_data=None, bounds=None):
     data = get_fingerprints(radiomaps=radiomaps)
     # initialize a new index, using a HNSW index on Cosine Similarity
-    index = nmslib.init(method='hnsw', space='l2')
+    index = nmslib.init(method='hnsw', space='cosinesimil')
     index.addDataPointBatch(data)
     index.createIndex({'post': 2}, print_progress=True)
 
@@ -71,9 +71,8 @@ def check_position_pred_accuracy(n_rows=8, n_cols=10, radiomaps=None, testing_da
         # query for the nearest neighbours of the first datapoint
         ids, distances = index.knnQuery(rdata[2:].values, k=3)
         cells = list(map(lambda idx: flatten_to_cell(
-            nrow=n_rows, ncol=n_cols, id=idx), ids))
+            n_rows=n_rows, n_cols=n_cols, id=idx), ids))
         cells = np.array(cells)
-        print('Test data ({row_idx},{col_idx}):', rdata[2:].values)
 
         # fill in into radiomap
         for cell in cells:
@@ -81,16 +80,23 @@ def check_position_pred_accuracy(n_rows=8, n_cols=10, radiomaps=None, testing_da
 
         col_idx = rdata['col']
         row_idx = rdata['row']
+        print(f'Test data ({row_idx},{col_idx}):', rdata[2:].values)
+        print(f'Test coord {cell_to_coord(n_rows, n_cols, bounds, (row_idx+0.5,col_idx+0.5))}')
         # fill in into radiomap
         location_map[row_idx, col_idx] = 1
         # get centroids to estimate error
         centroid_measured = get_centroid_measured(location_map)
         centroid_pred = get_centroid_cell(cells, distances)
+        # get centroid coords
+        centroid_coord= cell_to_coord(n_rows, n_cols, bounds, centroid_pred)
+
         err = np.linalg.norm(centroid_measured - centroid_pred)
         RMSErr = RMSErr + err**2
         print('3 nearest neighbours (array idx):', ids, distances)
         print(f'3 nearest neighbours (matrix idx):\n({cells})')
         print(f'Centroid cell: ({centroid_pred})')
+        print(f'Centroid coord: ({centroid_coord})')
+
         print('Error:', err)
         # print(f'Distances: {distances}')
 
@@ -100,3 +106,14 @@ def check_position_pred_accuracy(n_rows=8, n_cols=10, radiomaps=None, testing_da
         print('=====================================')
     RMSErr = np.sqrt(RMSErr / len(testing_data))
     print('RMSE: ', RMSErr)
+
+
+def get_ratio_pos(start_vector, end_vector, range, idx):
+    pos = idx/range*end_vector + (range-idx)/range*start_vector
+    return pos
+
+def cell_to_coord(n_rows, n_cols, bounds, cell):
+    row1 = get_ratio_pos(bounds[0],bounds[3],n_rows, cell[0])
+    row2 = get_ratio_pos(bounds[1],bounds[2],n_rows, cell[0])
+    coord = get_ratio_pos(row1,row2, n_cols, cell[1])
+    return coord

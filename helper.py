@@ -7,7 +7,9 @@ import nmslib
 def plot_radiomap(radiomap, min_data, max_data, beacon, centroid=None, error=0):
     sns.color_palette("flare", as_cmap=True)
     ax = sns.heatmap(radiomap, cmap="flare",
-                    vmin=min_data, vmax=max_data,linewidth=.01)
+                    vmin=min_data, vmax=max_data,
+                    # linewidth=.01
+                    )
     plt.title(f"[GPR model]{beacon}")
     plt.xlabel('x-index (1m x 1m square)', fontsize=10)
     plt.ylabel('y-index (1m x 1m square)', fontsize=10)
@@ -59,7 +61,7 @@ def get_centroid_cell(cells, distances):
 def check_position_pred_accuracy(n_rows=8, n_cols=10, radiomaps=None, testing_data=None, bounds=None):
     data = get_fingerprints(radiomaps=radiomaps)
     # initialize a new index, using a HNSW index on Cosine Similarity
-    index = nmslib.init(method='hnsw', space='cosinesimil')
+    index = nmslib.init(method='hnsw', space='l2')
     index.addDataPointBatch(data)
     index.createIndex({'post': 2}, print_progress=True)
 

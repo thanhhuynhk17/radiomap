@@ -1,14 +1,15 @@
 import seaborn as sns
 import matplotlib.pylab as plt
+plt.rcParams["figure.figsize"] = (8,6)
 import numpy as np
 import nmslib
-
 
 def plot_radiomap(radiomap, min_data, max_data, beacon, centroid=None, error=0):
     sns.color_palette("flare", as_cmap=True)
     ax = sns.heatmap(radiomap, cmap="flare",
                     vmin=min_data, vmax=max_data,
-                    # linewidth=.01
+                    # linewidth=.01,
+                    # annot=True, fmt='.1f'
                     )
     plt.title(f"[GPR model]{beacon}")
     plt.xlabel('x-index (1m x 1m square)', fontsize=10)
@@ -20,7 +21,7 @@ def plot_radiomap(radiomap, min_data, max_data, beacon, centroid=None, error=0):
         plt.scatter(measure_centroid[1], measure_centroid[0])
         plt.scatter(centroid[1], centroid[0])
 
-    plt.savefig(f'{beacon} GPR')
+    plt.savefig(f'img/{beacon} GPR')
     plt.show()
     return plt
 
@@ -61,7 +62,7 @@ def get_centroid_cell(cells, distances):
 def check_position_pred_accuracy(n_rows=8, n_cols=10, radiomaps=None, testing_data=None, bounds=None):
     data = get_fingerprints(radiomaps=radiomaps)
     # initialize a new index, using a HNSW index on Cosine Similarity
-    index = nmslib.init(method='hnsw', space='l2')
+    index = nmslib.init(method='hnsw', space='cosinesimil')
     index.addDataPointBatch(data)
     index.createIndex({'post': 2}, print_progress=True)
 
@@ -95,7 +96,8 @@ def check_position_pred_accuracy(n_rows=8, n_cols=10, radiomaps=None, testing_da
         err = np.linalg.norm(centroid_measured - centroid_pred)
         RMSErr = RMSErr + err**2
         print('3 nearest neighbours (array idx):', ids, distances)
-        print(f'3 nearest neighbours (matrix idx):\n({cells})')
+        # print(f'3 nearest neighbours (matrix idx):\n({cells})')
+        print(f'3 nearest neighbours (fingerprints):\n({np.array(data)[ids]})')
         print(f'Centroid cell: ({centroid_pred})')
         print(f'Centroid coord: ({centroid_coord})')
 
